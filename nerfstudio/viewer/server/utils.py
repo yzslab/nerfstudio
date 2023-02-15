@@ -78,6 +78,8 @@ def get_intrinsics_matrix_and_camera_to_world_h(
         image_width = aspect * image_height
     pp_w = image_width / 2.0
     pp_h = image_height / 2.0
+    if "camera_type" not in camera_object:
+        camera_object["camera_type"] = "perspective"
     if (camera_object["camera_type"] == "perspective") | (camera_object["camera_type"] == "fisheye"):
         focal_length = three_js_perspective_camera_focal_length(fov, image_height)
         intrinsics_matrix = torch.tensor([[focal_length, 0, pp_w], [0, focal_length, pp_h], [0, 0, 1]]).float()

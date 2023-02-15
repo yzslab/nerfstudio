@@ -114,11 +114,12 @@ class RaySamples(TensorDataclass):
     times: Optional[TensorType[..., 1]] = None
     """Times at which rays are sampled"""
 
-    def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
+    def get_weights(self, densities: TensorType[..., "num_samples", 1], return_transmittance: bool = False):
         """Return weights based on predicted densities
 
         Args:
             densities: Predicted densities for samples along ray
+            return_transmittance: Return transmittance
 
         Returns:
             Weights for each sample
@@ -136,6 +137,8 @@ class RaySamples(TensorDataclass):
         weights = alphas * transmittance  # [..., "num_samples"]
         weights = torch.nan_to_num(weights)
 
+        if return_transmittance is True:
+            return weights, transmittance
         return weights
 
 

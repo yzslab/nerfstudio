@@ -39,6 +39,7 @@ from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
     InstantNGPDataParserConfig,
 )
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
+from nerfstudio.data.dataparsers.nerflab_dataparser import NerflabDataParserConfig
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
@@ -50,6 +51,7 @@ from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
+from nerfstudio.models.nerflab import NerflabModelConfig
 from nerfstudio.models.nerfplayer_nerfacto import NerfplayerNerfactoModelConfig
 from nerfstudio.models.nerfplayer_ngp import NerfplayerNGPModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
@@ -62,6 +64,7 @@ from nerfstudio.plugins.registry import discover_methods
 method_configs: Dict[str, TrainerConfig] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
+    "nerflab": "NeRF Laboratory.",
     "depth-nerfacto": "Nerfacto with depth supervision.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for unbounded scenes.",
     "instant-ngp-bounded": "Implementation of Instant-NGP. Recommended for bounded real and synthetic scenes",
@@ -99,6 +102,72 @@ method_configs["nerfacto"] = TrainerConfig(
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["nerfacto-vres"] = TrainerConfig(
+    method_name="nerfacto-vres",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VariableResDataManagerConfig(
+            dataparser=NerflabDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+            ),
+        ),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["nerflab"] = TrainerConfig(
+    method_name="nerflab",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VariableResDataManagerConfig(
+            dataparser=NerflabDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+            ),
+        ),
+        model=NerflabModelConfig(eval_num_rays_per_chunk=1 << 15),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "visibility_network": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-8),
             "scheduler": None,
         },
     },
