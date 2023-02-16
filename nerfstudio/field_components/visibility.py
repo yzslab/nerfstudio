@@ -12,12 +12,12 @@ class Visibility(torch.nn.Module):
             self,
             aabb,
             spatial_distortion,
-            num_levels: int = 6,
+            num_levels: int = 8,
             base_res: int = 16,
             max_res: int = 512,
             log2_hashmap_size: int = 17,
-            n_neurons: int = 32,
-            n_layers: int = 2,
+            n_neurons: int = 16,
+            n_layers: int = 3,
     ):
         super().__init__()
 

@@ -25,6 +25,9 @@ class NerflabModelConfig(NerfactoModelConfig):
     use_visibility_network: bool = True
     """Train visibility network"""
 
+    visibility_loss_mult: float = 0.001
+    """Visibility loss multiplier"""
+
 
 class NerflabModel(NerfactoModel):
     config = NerflabModelConfig
@@ -91,7 +94,7 @@ class NerflabModel(NerfactoModel):
         loss_dict = super().get_loss_dict(outputs, batch, metrics_dict)
 
         # use NeRF output supervise visibility network
-        loss_dict["transmittance_loss"] = 0.001 * (
+        loss_dict["transmittance_loss"] = self.config.visibility_loss_mult * (
                 (outputs["transmittance"].detach() - outputs["pred_transmittance"]) ** 2
         ).mean()
 
