@@ -54,7 +54,7 @@ class NerflabDataParserConfig(DataParserConfig):
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
-    orientation_method: Literal["pca", "up", "none"] = "up"
+    orientation_method: Literal["pca", "up", "none"] = "none"
     """The method to use for orientation."""
     center_poses: bool = False
     """Whether to center the poses."""
