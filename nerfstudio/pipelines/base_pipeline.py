@@ -46,6 +46,11 @@ from nerfstudio.data.datamanagers.base_datamanager import (
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
+import mediapy as media
+import os
+import cv2
+import numpy as np
+from PIL import Image
 
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
@@ -319,6 +324,20 @@ class VanillaPipeline(Pipeline):
         Returns:
             metrics_dict: dictionary of metrics
         """
+
+        def visualize_depth(depth, cmap=cv2.COLORMAP_JET):
+            """
+            depth: (H, W)
+            """
+            x = depth.cpu().numpy()
+            x = np.nan_to_num(x)  # change nan to 0
+            mi = np.min(x)  # get minimum depth
+            ma = np.max(x)
+            x = (x - mi) / (ma - mi + 1e-8)  # normalize to 0~1
+            x = (255 * x).astype(np.uint8)
+            x_ = Image.fromarray(cv2.applyColorMap(x, cmap))
+            return x_
+
         self.eval()
         metrics_dict_list = []
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
@@ -330,12 +349,18 @@ class VanillaPipeline(Pipeline):
             transient=True,
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
+            count = 0
             for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
                 # time this the following line
                 inner_start = time()
                 height, width = camera_ray_bundle.shape
                 num_rays = height * width
                 outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                output_image = outputs["rgb"].cpu().numpy()
+                media.write_image(os.path.join("renders", f"{count:05d}_rgb.png"), output_image)
+                depth_map = visualize_depth(outputs["depth"])
+                depth_map.save(os.path.join("renders", f"{count:05d}_depth.png"))
+                count += 1
                 metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)

@@ -40,6 +40,7 @@ from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
 )
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.nerflab_dataparser import NerflabDataParserConfig
+from nerfstudio.data.dataparsers.blocknerf_dataparser import BlocknerfDataParserConfig
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
@@ -52,6 +53,7 @@ from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.nerflab import NerflabModelConfig
+from nerfstudio.models.blocknerf import BlocknerfModelConfig
 from nerfstudio.models.nerfplayer_nerfacto import NerfplayerNerfactoModelConfig
 from nerfstudio.models.nerfplayer_ngp import NerfplayerNGPModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
@@ -170,6 +172,29 @@ method_configs["nerflab"] = TrainerConfig(
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-8),
             "scheduler": None,
         },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["blocknerf"] = TrainerConfig(
+    method_name="blocknerf",
+    steps_per_eval_batch=99999999,
+    steps_per_save=99999999,
+    max_num_iterations=0,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VariableResDataManagerConfig(
+            dataparser=BlocknerfDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+            ),
+        ),
+        model=BlocknerfModelConfig(eval_num_rays_per_chunk=1 << 15),
+    ),
+    optimizers={
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",

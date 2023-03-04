@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import os
 import math
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
@@ -64,6 +65,10 @@ class NerflabDataParserConfig(DataParserConfig):
     """The percent of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    use_eval_list: bool = True,
+    """JSON file that contains split information for the dataset. If not set, the train_split_percentage used."""
+    eval_list_path: str = None,
+    """Load from same directory as transforms.json if not set."""
 
 
 @dataclass
@@ -82,6 +87,11 @@ class Nerflab(DataParser):
         else:
             meta = load_from_json(self.config.data / "transforms.json")
             data_dir = self.config.data
+
+        split_list = None
+        split_list_file_path = os.path.join(data_dir, "split.json")
+        if os.path.exists(split_list_file_path) or os.path.islink(split_list_file_path):
+            split_list = load_from_json(Path(split_list_file_path))
 
         image_filenames = []
         mask_filenames = []
@@ -108,6 +118,8 @@ class Nerflab(DataParser):
         width = []
         distort = []
 
+        num_accepted_images = 0
+        eval_id_list = []
         for frame in meta["frames"]:
             filepath = PurePath(frame["file_path"])
             fname = self._get_fname(filepath, data_dir)
@@ -146,6 +158,9 @@ class Nerflab(DataParser):
                 )
 
             image_filenames.append(fname)
+            if split_list is not None and fname in split_list:
+                eval_id_list.append(num_accepted_images)
+            num_accepted_images += 1
             poses.append(np.array(frame["transform_matrix"]))
             if "mask_path" in frame:
                 mask_filepath = PurePath(frame["mask_path"])
@@ -164,19 +179,19 @@ class Nerflab(DataParser):
         if num_skipped_image_filenames >= 0:
             CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
-            len(image_filenames) != 0
+                len(image_filenames) != 0
         ), """
         No image files found. 
         You should check the file_paths in the transforms.json file to make sure they are correct.
         """
         assert len(mask_filenames) == 0 or (
-            len(mask_filenames) == len(image_filenames)
+                len(mask_filenames) == len(image_filenames)
         ), """
         Different number of image and mask filenames.
         You should check that mask_path is specified for every frame (or zero frames) in transforms.json.
         """
         assert len(depth_filenames) == 0 or (
-            len(depth_filenames) == len(image_filenames)
+                len(depth_filenames) == len(image_filenames)
         ), """
         Different number of image and depth filenames.
         You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
@@ -184,13 +199,18 @@ class Nerflab(DataParser):
 
         # filter image_filenames and poses based on train/eval split percentage
         num_images = len(image_filenames)
-        num_train_images = math.ceil(num_images * self.config.train_split_percentage)
-        num_eval_images = num_images - num_train_images
         i_all = np.arange(num_images)
-        i_train = np.linspace(
-            0, num_images - 1, num_train_images, dtype=int
-        )  # equally spaced training images starting and ending at 0 and num_images-1
-        i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+        if len(eval_id_list) > 0:
+            num_eval_images = len(eval_id_list)
+            i_eval = np.asarray(eval_id_list)
+            i_train = np.setdiff1d(i_all, eval_id_list)
+        else:
+            num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+            num_eval_images = num_images - num_train_images
+            i_train = np.linspace(
+                0, num_images - 1, num_train_images, dtype=int
+            )  # equally spaced training images starting and ending at 0 and num_images-1
+            i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
         assert len(i_eval) == num_eval_images
         if split == "train":
             indices = i_train
@@ -206,6 +226,12 @@ class Nerflab(DataParser):
             orientation_method = self.config.orientation_method
 
         poses = torch.from_numpy(np.array(poses).astype(np.float32))
+
+        # apply offset
+        if "offset" in meta:
+            offset = torch.tensor(meta["offset"])
+            poses[:, :3, 3] -= offset[None, :]
+
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
             poses,
             method=orientation_method,
@@ -213,6 +239,9 @@ class Nerflab(DataParser):
         )
 
         # Scale poses
+        if "scale" in meta:
+            poses[:, :3, 3] *= meta["scale"]
+
         scale_factor = 1.0
         if self.config.auto_scale_poses:
             scale_factor /= float(torch.max(torch.abs(poses[:, :3, 3])))
@@ -306,11 +335,11 @@ class Nerflab(DataParser):
                 while True:
                     if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
                         break
-                    if not (data_dir / f"{downsample_folder_prefix}{2**(df+1)}" / filepath.name).exists():
+                    if not (data_dir / f"{downsample_folder_prefix}{2 ** (df + 1)}" / filepath.name).exists():
                         break
                     df += 1
 
-                self.downscale_factor = 2**df
+                self.downscale_factor = 2 ** df
                 CONSOLE.log(f"Auto image downscale factor of {self.downscale_factor}")
             else:
                 self.downscale_factor = self.config.downscale_factor

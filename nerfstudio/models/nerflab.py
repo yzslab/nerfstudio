@@ -1,5 +1,9 @@
 import tinycudann as tcnn
 import numpy as np
+import torch
+
+from collections import defaultdict
+
 from torch.nn import Parameter
 
 from nerfstudio.field_components.field_heads import FieldHeadNames
@@ -41,6 +45,33 @@ class NerflabModel(NerfactoModel):
             spatial_distortion=scene_contraction,
         )
 
+    @torch.no_grad()
+    def get_transmittance_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
+        """Takes in camera parameters and computes the output of the model.
+
+        Args:
+            camera_ray_bundle: ray bundle to calculate outputs over
+        """
+        num_rays_per_chunk = self.config.eval_num_rays_per_chunk
+        image_height, image_width = camera_ray_bundle.origins.shape[:2]
+        num_rays = len(camera_ray_bundle)
+        output_list = []
+        for i in range(0, num_rays, num_rays_per_chunk):
+            start_idx = i
+            end_idx = i + num_rays_per_chunk
+            ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
+            output = self.get_pred_transmittance(ray_bundle=ray_bundle)
+            output_list.append(output)
+        output = torch.cat(output_list).view(image_height, image_width, -1)  # type: ignore
+        return output
+
+    @torch.no_grad()
+    def get_pred_transmittance(self, ray_bundle: RayBundle):
+        if self.collider is not None:
+            ray_bundle = self.collider(ray_bundle)
+        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
+        return self.visibility_network(ray_samples)
+
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
@@ -61,7 +92,7 @@ class NerflabModel(NerfactoModel):
             "depth": depth,
         }
 
-        if self.config.use_visibility_network:
+        if self.config.use_visibility_network and self.training:
             outputs["pred_transmittance"] = self.visibility_network(ray_samples)
 
         if self.config.predict_normals:
@@ -94,9 +125,11 @@ class NerflabModel(NerfactoModel):
         loss_dict = super().get_loss_dict(outputs, batch, metrics_dict)
 
         # use NeRF output supervise visibility network
-        loss_dict["transmittance_loss"] = self.config.visibility_loss_mult * (
-                (outputs["transmittance"].detach() - outputs["pred_transmittance"]) ** 2
-        ).mean()
+        # TODO: transmittance loss should be calculate in evaluate mode
+        if "pred_transmittance" in outputs:
+            loss_dict["transmittance_loss"] = self.config.visibility_loss_mult * (
+                    (outputs["transmittance"].detach() - outputs["pred_transmittance"]) ** 2
+            ).mean()
 
         return loss_dict
 
