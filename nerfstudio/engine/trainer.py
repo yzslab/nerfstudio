@@ -167,7 +167,10 @@ class Trainer:
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / self.config.logging.relative_log_dir
         writer.setup_event_writer(
-            self.config.is_wandb_enabled(), self.config.is_tensorboard_enabled(), log_dir=writer_log_path
+            self.config.is_wandb_enabled(),
+            self.config.is_tensorboard_enabled(),
+            log_dir=writer_log_path,
+            name="{}/{}/{}".format(self.config.experiment_name, self.config.method_name, self.config.timestamp),
         )
         writer.setup_local_writer(
             self.config.logging, max_iter=self.config.max_num_iterations, banner_messages=banner_messages

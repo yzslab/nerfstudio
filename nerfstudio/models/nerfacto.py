@@ -73,6 +73,8 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to stop sampling."""
     background_color: Literal["random", "last_sample", "black", "white"] = "last_sample"
     """Whether to randomize the background color."""
+    num_layers: int = 2
+    """Layers of the density MLP"""
     hidden_dim: int = 64
     """Dimension of hidden layers"""
     hidden_dim_color: int = 64
@@ -151,6 +153,7 @@ class NerfactoModel(Model):
         # Fields
         self.field = TCNNNerfactoField(
             self.scene_box.aabb,
+            num_layers=self.config.num_layers,
             hidden_dim=self.config.hidden_dim,
             num_levels=self.config.num_levels,
             max_res=self.config.max_res,
