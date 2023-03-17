@@ -91,7 +91,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         if "mask" in batch:
             indices = self.sample_method(
                 num_rays_per_batch, num_images, image_height, image_width, mask=batch["mask"], device=device
-            )
+            ).to(device="cpu")
         else:
             indices = self.sample_method(num_rays_per_batch, num_images, image_height, image_width, device=device)
 

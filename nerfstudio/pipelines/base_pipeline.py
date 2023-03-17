@@ -349,6 +349,7 @@ class VanillaPipeline(Pipeline):
         self.eval()
         metrics_dict_list = []
         num_images = len(self.datamanager.fixed_indices_eval_dataloader)
+        os.makedirs("renders", exist_ok=True)
         with Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
