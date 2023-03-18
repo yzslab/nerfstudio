@@ -4,7 +4,7 @@ import numpy as np
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components.ray_samplers import RaySamples
-from nerfstudio.fields.nerfacto_field import get_normalized_directions
+from nerfstudio.fields.base_field import shift_directions_for_tcnn
 
 
 class Visibility(torch.nn.Module):
@@ -67,7 +67,7 @@ class Visibility(torch.nn.Module):
         positions_flat = positions.view(-1, 3)
 
         # get normalized directions
-        directions = get_normalized_directions(ray_samples.frustums.directions)
+        directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
 
         # concat
