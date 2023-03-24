@@ -110,6 +110,8 @@ class RaySamples(TensorDataclass):
     """Frustums along ray."""
     camera_indices: Optional[TensorType["bs":..., 1]] = None
     """Camera index."""
+    appearance_embeddings: Optional[TensorType["bs":..., 1]] = None
+    """Appearance embeddings"""
     deltas: Optional[TensorType["bs":..., 1]] = None
     """"width" of each sample."""
     spacing_starts: Optional[TensorType["bs":..., "num_samples", 1]] = None
@@ -186,6 +188,8 @@ class RayBundle(TensorDataclass):
     """Projected area of pixel a distance 1 away from origin"""
     camera_indices: Optional[TensorType[..., 1]] = None
     """Camera indices"""
+    appearance_embeddings: Optional[TensorType[..., 1]] = None
+    """Appearance embeddings"""
     nears: Optional[TensorType[..., 1]] = None
     """Distance along ray to start sampling"""
     fars: Optional[TensorType[..., 1]] = None
@@ -256,6 +260,10 @@ class RayBundle(TensorDataclass):
         else:
             camera_indices = None
 
+        appearance_embeddings = camera_indices[...]
+        if self.appearance_embeddings is not None:
+            appearance_embeddings = self.appearance_embeddings[..., None]
+
         shaped_raybundle_fields = self[..., None]
 
         frustums = Frustums(
@@ -269,6 +277,7 @@ class RayBundle(TensorDataclass):
         ray_samples = RaySamples(
             frustums=frustums,
             camera_indices=camera_indices,  # [..., 1, 1]
+            appearance_embeddings=appearance_embeddings,
             deltas=deltas,  # [..., num_samples, 1]
             spacing_starts=spacing_starts,  # [..., num_samples, 1]
             spacing_ends=spacing_ends,  # [..., num_samples, 1]

@@ -104,6 +104,7 @@ class TCNNNerfactoField(Field):
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: SpatialDistortion = None,
+        num_appearance_embedding: int = None,
     ) -> None:
         super().__init__()
 
@@ -116,8 +117,13 @@ class TCNNNerfactoField(Field):
 
         self.spatial_distortion = spatial_distortion
         self.num_images = num_images
+        # auto set num appearance embedding
+        if num_appearance_embedding is None:
+            num_appearance_embedding = self.num_images
+        self.num_appearance_embedding = num_appearance_embedding
+
         self.appearance_embedding_dim = appearance_embedding_dim
-        self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
+        self.embedding_appearance = Embedding(self.num_appearance_embedding, self.appearance_embedding_dim)
         self.use_average_appearance_embedding = use_average_appearance_embedding
         self.use_transient_embedding = use_transient_embedding
         self.use_semantics = use_semantics
@@ -258,6 +264,7 @@ class TCNNNerfactoField(Field):
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
         camera_indices = ray_samples.camera_indices.squeeze()
+        appearance_embeddings = ray_samples.appearance_embeddings.squeeze()
         directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
@@ -266,7 +273,7 @@ class TCNNNerfactoField(Field):
 
         # appearance
         if self.training:
-            embedded_appearance = self.embedding_appearance(camera_indices)
+            embedded_appearance = self.embedding_appearance(appearance_embeddings)
         else:
             if self.use_average_appearance_embedding:
                 embedded_appearance = torch.ones(

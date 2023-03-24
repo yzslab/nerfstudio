@@ -26,6 +26,12 @@ from nerfstudio.field_components.spatial_distortions import SceneContraction
 class NerflabModelConfig(NerfactoModelConfig):
     _target: Type = field(default_factory=lambda: NerflabModel)
 
+    max_res: int = 8192
+    """Maximum resolution of the hashmap for the base mlp."""
+
+    use_average_appearance_embedding: bool = False
+    """Whether to use average appearance embedding or zeros for inference."""
+
     use_visibility_network: bool = True
     """Train visibility network"""
 

@@ -151,6 +151,10 @@ class NerfactoModel(Model):
             scene_contraction = SceneContraction(order=float("inf"))
 
         # Fields
+        num_appearance_embedding = self.num_train_data
+        if "metadata" in self.kwargs and "global_max_image_id" in self.kwargs["metadata"]:
+            # must plus one to prevent embedding out of index
+            num_appearance_embedding = self.kwargs["metadata"]["global_max_image_id"] + 1
         self.field = TCNNNerfactoField(
             self.scene_box.aabb,
             num_layers=self.config.num_layers,
@@ -164,6 +168,7 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
+            num_appearance_embedding=num_appearance_embedding,
         )
 
         self.density_fns = []

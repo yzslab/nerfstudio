@@ -57,8 +57,8 @@ class NerflabDataParserConfig(DataParserConfig):
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up", "none"] = "none"
     """The method to use for orientation."""
-    center_poses: bool = False
-    """Whether to center the poses."""
+    center_method: Literal["poses", "focus", "none"] = "none"
+    """The method to use to center the poses."""
     auto_scale_poses: bool = False
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_split_percentage: float = 0.99
@@ -94,6 +94,7 @@ class Nerflab(DataParser):
             split_list = load_from_json(Path(split_list_file_path))
 
         image_filenames = []
+        image_ids = []
         mask_filenames = []
         depth_filenames = []
         poses = []
@@ -158,6 +159,7 @@ class Nerflab(DataParser):
                 )
 
             image_filenames.append(fname)
+            image_ids.append(frame["image_id"])
             if split_list is not None and fname in split_list:
                 eval_id_list.append(num_accepted_images)
             num_accepted_images += 1
@@ -235,7 +237,7 @@ class Nerflab(DataParser):
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
             poses,
             method=orientation_method,
-            center_poses=self.config.center_poses,
+            center_method=self.config.center_method,
         )
 
         # Scale poses
@@ -251,6 +253,7 @@ class Nerflab(DataParser):
 
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
         image_filenames = [image_filenames[i] for i in indices]
+        image_ids = [image_ids[i] for i in indices]
         mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
         depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
         poses = poses[indices]
@@ -311,6 +314,8 @@ class Nerflab(DataParser):
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
             metadata={
+                "global_max_image_id": meta["global_max_image_id"],
+                "image_ids": image_ids,
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
             },

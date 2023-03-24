@@ -484,6 +484,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.train_ray_generator(ray_indices)
+        if "appearance_embeddings" in batch:
+            ray_bundle.appearance_embeddings = batch["appearance_embeddings"].unsqueeze(-1).to(ray_bundle.camera_indices.device)
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:

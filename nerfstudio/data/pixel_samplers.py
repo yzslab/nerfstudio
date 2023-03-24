@@ -166,12 +166,15 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         collated_batch = {
             key: value[c, y, x]
             for key, value in batch.items()
-            if key != "image_idx" and key != "image" and key != "mask" and value is not None
+            if key != "image_idx" and key != "appearance_embedding" and key != "image" and key != "mask" and value is not None
         }
 
         collated_batch["image"] = torch.cat(all_images, dim=0)
 
         assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
+
+        if "appearance_embedding" in batch:
+            collated_batch["appearance_embeddings"] = (batch["appearance_embedding"].cpu())[c]
 
         # Needed to correct the random indices to their actual camera idx locations.
         indices[:, 0] = batch["image_idx"][c]

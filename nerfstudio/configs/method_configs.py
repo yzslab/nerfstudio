@@ -32,6 +32,7 @@ from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManage
 from nerfstudio.data.datamanagers.variable_res_datamanager import (
     VariableResDataManagerConfig,
 )
+from nerfstudio.data.datamanagers.nerflab_datamanager import NeRFLabDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.dycheck_dataparser import DycheckDataParserConfig
@@ -152,17 +153,17 @@ method_configs["nerfacto-vres"] = TrainerConfig(
 
 method_configs["nerflab"] = TrainerConfig(
     method_name="nerflab",
-    steps_per_eval_batch=500,
+    steps_per_eval_batch=15000,
     steps_per_save=2000,
-    max_num_iterations=30000,
+    max_num_iterations=15001,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        datamanager=VariableResDataManagerConfig(
+        datamanager=NeRFLabDataManagerConfig(
             dataparser=NerflabDataParserConfig(),
-            train_num_rays_per_batch=4096,
-            eval_num_rays_per_batch=4096,
+            train_num_rays_per_batch=20480,
+            eval_num_rays_per_batch=20480,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+                mode="off", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
         model=NerflabModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -170,15 +171,15 @@ method_configs["nerflab"] = TrainerConfig(
     optimizers={
         "proposal_networks": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=100000),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=100001),
         },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=100000),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=100001),
         },
         "visibility_network": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-8),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=100000),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=100001),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
@@ -194,10 +195,10 @@ method_configs["blocknerf"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         datamanager=VariableResDataManagerConfig(
             dataparser=BlocknerfDataParserConfig(),
-            train_num_rays_per_batch=4096,
-            eval_num_rays_per_batch=4096,
+            train_num_rays_per_batch=20480,
+            eval_num_rays_per_batch=20480,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+                mode="off", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
         model=BlocknerfModelConfig(eval_num_rays_per_chunk=1 << 15),
