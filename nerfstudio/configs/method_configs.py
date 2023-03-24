@@ -29,9 +29,6 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConf
 from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
 from nerfstudio.data.datamanagers.sdf_datamanager import SDFDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
-from nerfstudio.data.datamanagers.variable_res_datamanager import (
-    VariableResDataManagerConfig,
-)
 from nerfstudio.data.datamanagers.nerflab_datamanager import NeRFLabDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
@@ -120,37 +117,6 @@ method_configs["nerfacto"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["nerfacto-vres"] = TrainerConfig(
-    method_name="nerfacto-vres",
-    steps_per_eval_batch=500,
-    steps_per_save=2000,
-    max_num_iterations=30000,
-    mixed_precision=True,
-    pipeline=VanillaPipelineConfig(
-        datamanager=VariableResDataManagerConfig(
-            dataparser=NerflabDataParserConfig(),
-            train_num_rays_per_batch=4096,
-            eval_num_rays_per_batch=4096,
-            camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
-            ),
-        ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
-    ),
-    optimizers={
-        "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=100000),
-        },
-        "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=1e-5, max_steps=100000),
-        },
-    },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
-    vis="viewer",
-)
-
 method_configs["nerflab"] = TrainerConfig(
     method_name="nerflab",
     steps_per_eval_batch=15000,
@@ -193,7 +159,7 @@ method_configs["blocknerf"] = TrainerConfig(
     max_num_iterations=0,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        datamanager=VariableResDataManagerConfig(
+        datamanager=VanillaDataManagerConfig(
             dataparser=BlocknerfDataParserConfig(),
             train_num_rays_per_batch=20480,
             eval_num_rays_per_batch=20480,
@@ -453,13 +419,18 @@ method_configs["phototourism"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        datamanager=VariableResDataManagerConfig(  # NOTE: one of the only differences with nerfacto
+        datamanager=VanillaDataManagerConfig(
             dataparser=PhototourismDataParserConfig(),  # NOTE: one of the only differences with nerfacto
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
                 mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
+            # Large dataset, so using prior values from VariableResDataManager.
+            train_num_images_to_sample_from=40,
+            train_num_times_to_repeat_images=100,
+            eval_num_images_to_sample_from=40,
+            eval_num_times_to_repeat_images=100,
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
