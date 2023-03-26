@@ -29,6 +29,7 @@ from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConf
 from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
 from nerfstudio.data.datamanagers.sdf_datamanager import SDFDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
+from nerfstudio.data.datamanagers.blocknerf_datamanager import BlockNeRFDatamanagerConfig
 from nerfstudio.data.datamanagers.nerflab_datamanager import NeRFLabDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
@@ -64,6 +65,7 @@ from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
+from nerfstudio.pipelines.blocknerf_pipeline import BlockNeRFPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 from nerfstudio.plugins.registry import discover_methods
 
@@ -158,15 +160,8 @@ method_configs["blocknerf"] = TrainerConfig(
     steps_per_save=99999999,
     max_num_iterations=0,
     mixed_precision=True,
-    pipeline=VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            dataparser=BlocknerfDataParserConfig(),
-            train_num_rays_per_batch=20480,
-            eval_num_rays_per_batch=20480,
-            camera_optimizer=CameraOptimizerConfig(
-                mode="off", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
-            ),
-        ),
+    pipeline=BlockNeRFPipelineConfig(
+        datamanager=BlockNeRFDatamanagerConfig(),
         model=BlocknerfModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
     optimizers={

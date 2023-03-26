@@ -58,7 +58,7 @@ class ExperimentConfig(InstantiateConfig):
     """Logging configuration"""
     viewer: ViewerConfig = ViewerConfig()
     """Viewer configuration"""
-    pipeline: VanillaPipelineConfig = VanillaPipelineConfig()
+    pipeline: Any = VanillaPipelineConfig()
     """Pipeline configuration"""
     optimizers: Dict[str, Any] = to_immutable_dict(
         {

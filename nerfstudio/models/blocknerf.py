@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 import json
 import time
@@ -20,21 +22,25 @@ from nerfstudio.models.base_model import Model, ModelConfig
 class BlocknerfModelConfig(ModelConfig):
     _target: Type = field(default_factory=lambda: BlocknerfModel)
 
-    block_meta: str = "/mnt/e/dataset/jnu_block_nerf/colmap-blocks.npy"
-
-    block_configs: str = "/mnt/e/dataset/jnu_block_nerf/block-configs.json"
-
 
 class BlocknerfModel(Model):
     config = BlocknerfModelConfig
 
+    def __init__(self, config: ModelConfig, scene_box: SceneBox, num_train_data: int, block_npy, block_configs, **kwargs) -> None:
+        self.block_meta = block_npy
+        self.block_configs = block_configs
+
+        super().__init__(config, scene_box, num_train_data, **kwargs)
+
     def populate_modules(self):
         super().populate_modules()
 
-        with open(self.config.block_configs, "r") as f:
-            self.block_configs = json.load(f)
+        # load block configs
+        with open(self.block_configs, "r") as f:
+            self.block_configs = json.load(f)["configs"]
 
-        self.block_meta = np.load(self.config.block_meta, allow_pickle=True).item()
+        # load block information
+        self.block_meta = np.load(self.block_meta, allow_pickle=True).item()
         block_bbox_max = []
         block_bbox_min = []
         block_offsets = []
@@ -64,14 +70,24 @@ class BlocknerfModel(Model):
         self.block_centers = torch.stack(block_centers).to(device)
         self.block_ids = block_ids
 
-        block_pipelines = {}
+        # ckpt_path = "/tmp/block_models.pth"
+        #
+        # if os.path.exists(ckpt_path):
+        #     block_models = torch.load(ckpt_path)
+        #     block_models.to(device)
+        # else:
+
+        # load block models
+        block_models = torch.nn.ModuleDict()
         for block_id in self.block_configs:
             pipeline = eval_setup(Path(self.block_configs[block_id]), self.config.eval_num_rays_per_chunk, "inference")[1]
             pipeline.model.config.eval_num_rays_per_chunk = 131072
-            block_pipelines[block_id] = pipeline
+            block_models[block_id] = pipeline.model
+
+            # torch.save(block_models, ckpt_path)
 
 
-        self.block_pipelines = block_pipelines
+        self.block_models = block_models
 
     def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
         pass
@@ -120,11 +136,12 @@ class BlocknerfModel(Model):
         selected_block_ids = []
         count = 0
         render_consumed = 0
+        # use each suitable block to render
         for i in suitable_block_index:
             block_id = self.block_ids[int(i)]
             suitable_block_ids.append(block_id)
-            if block_id in self.block_pipelines:
-                model = self.block_pipelines[block_id].model
+            if block_id in self.block_models:
+                model = self.block_models[block_id]
                 block_scale = self.block_scales[i]
                 ray_bundle_for_block = RayBundle(
                     origins=block_scale * (camera_ray_bundle.origins - self.block_offsets[i].to(camera_ray_bundle.origins.device)),
@@ -136,15 +153,19 @@ class BlocknerfModel(Model):
                     metadata=camera_ray_bundle.metadata,
                     times=camera_ray_bundle.times,
                 )
+                # query transmittance
                 transmittance = model.get_transmittance_for_camera_ray_bundle(ray_bundle_for_block)
                 mean_transmittance = transmittance.mean()
+                # discard block if transmittance is too low
                 if mean_transmittance <= 0.05 and suitable_block_index.shape[0] > 1:
                     continue
                 block_mean_transmittance.append(mean_transmittance)
                 start_at = time.time()
+                # render
                 block_output = model.get_outputs_for_camera_ray_bundle(ray_bundle_for_block)
                 render_consumed = time.time() - start_at
                 block_output_rgbs.append(block_output["rgb"])
+                # calculate weight by block center distance
                 block_output_weights.append(self.distance_weight(origin, self.block_centers[i]))
                 selected_block_ids.append(block_id)
 
@@ -157,7 +178,8 @@ class BlocknerfModel(Model):
             block_output_rgbs = torch.stack(block_output_rgbs)#[top2index]
             block_output_weights = torch.stack(block_output_weights)#[top2index]
             normalized_weights = block_output_weights / block_output_weights.sum()
-            print("o:{}; in_range:{}; t: {}; used:{}; wei:{}; c: {}".format(
+            print("xy:{}; block_in_range:{}; \n"
+                  "    transmittance: {}; used_blocks:{}; weights:{}; render_consumed: {}".format(
                 origin.cpu().numpy(),
                 in_range_block_ids,
                 block_mean_transmittance.cpu().numpy(),
@@ -165,8 +187,10 @@ class BlocknerfModel(Model):
                 normalized_weights.cpu().numpy(),
                 render_consumed,
             ))
+            # aggregate all block RGB outputs
             rgb = torch.sum(normalized_weights[:, None, None, None] * block_output_rgbs, dim=0)
         else:
+            # no suitable block found
             rgb = 0.5 * torch.ones(list(camera_ray_bundle.shape[:2]) + [3]).to(camera_ray_bundle.origins.device)
 
         outputs["rgb"] = rgb
