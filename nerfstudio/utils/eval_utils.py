@@ -68,6 +68,7 @@ def eval_setup(
     config_path: Path,
     eval_num_rays_per_chunk: Optional[int] = None,
     test_mode: Literal["test", "val", "inference"] = "test",
+    force_device: str = None,
 ) -> Tuple[TrainerConfig, Pipeline, Path]:
     """Shared setup for loading a saved pipeline for evaluation.
 
@@ -78,6 +79,7 @@ def eval_setup(
             'val': loads train/val datasets into memory
             'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
+        force_device: cuda or cpu
 
 
     Returns:
@@ -96,7 +98,10 @@ def eval_setup(
     config.pipeline.datamanager.eval_image_indices = None
 
     # setup pipeline (which includes the DataManager)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if force_device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device(force_device)
     pipeline = config.pipeline.setup(device=device, test_mode=test_mode)
     assert isinstance(pipeline, Pipeline)
     pipeline.eval()

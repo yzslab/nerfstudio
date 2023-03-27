@@ -2,9 +2,11 @@ import os.path
 
 import numpy as np
 import json
+import yaml
 import time
 
 from pathlib import Path
+from tqdm import tqdm
 
 from typing import Dict, List, Tuple, Type
 from dataclasses import dataclass, field
@@ -26,18 +28,17 @@ class BlocknerfModelConfig(ModelConfig):
 class BlocknerfModel(Model):
     config = BlocknerfModelConfig
 
-    def __init__(self, config: ModelConfig, scene_box: SceneBox, num_train_data: int, block_npy, block_configs, **kwargs) -> None:
+    def __init__(self, config: ModelConfig, scene_box: SceneBox, num_train_data: int, block_npy, merged_model_checkpoint, **kwargs) -> None:
         self.block_meta = block_npy
-        self.block_configs = block_configs
+        self.merged_model_checkpoint = merged_model_checkpoint
 
         super().__init__(config, scene_box, num_train_data, **kwargs)
 
     def populate_modules(self):
         super().populate_modules()
 
-        # load block configs
-        with open(self.block_configs, "r") as f:
-            self.block_configs = json.load(f)["configs"]
+        # load merged checkpoint
+        loaded_checkpoint = torch.load(self.merged_model_checkpoint, map_location="cpu")
 
         # load block information
         self.block_meta = np.load(self.block_meta, allow_pickle=True).item()
@@ -48,7 +49,7 @@ class BlocknerfModel(Model):
         block_centers = []
         block_ids = []
         for i in self.block_meta:
-            if i not in self.block_configs:
+            if i not in loaded_checkpoint["init_param_dict"]:
                 continue
             bounding_box = self.block_meta[i]["bbox"]
             block_bbox_max.append(torch.tensor(bounding_box["max"]))
@@ -70,22 +71,26 @@ class BlocknerfModel(Model):
         self.block_centers = torch.stack(block_centers).to(device)
         self.block_ids = block_ids
 
-        # ckpt_path = "/tmp/block_models.pth"
-        #
-        # if os.path.exists(ckpt_path):
-        #     block_models = torch.load(ckpt_path)
-        #     block_models.to(device)
-        # else:
-
         # load block models
         block_models = torch.nn.ModuleDict()
-        for block_id in self.block_configs:
-            pipeline = eval_setup(Path(self.block_configs[block_id]), self.config.eval_num_rays_per_chunk, "inference")[1]
-            pipeline.model.config.eval_num_rays_per_chunk = 131072
-            block_models[block_id] = pipeline.model
+        with tqdm(loaded_checkpoint["init_param_dict"].keys()) as t:
+            for block_id in t:
+                t.set_description("initializing {}".format(block_id))
+                init_param = loaded_checkpoint["init_param_dict"][block_id]
+                config = loaded_checkpoint["config_dict"][block_id]
 
-            # torch.save(block_models, ckpt_path)
+                config.eval_num_rays_per_chunk = self.config.eval_num_rays_per_chunk
 
+                block_models[block_id] = config.setup(
+                    scene_box=init_param["scene_box"],
+                    num_train_data=init_param["num_train_data"],
+                    **init_param["kwargs"],
+                )
+
+        print("loading state dict...")
+        block_models.load_state_dict(loaded_checkpoint["state_dict"], strict=True)
+        block_models.eval()
+        block_models.to(device)
 
         self.block_models = block_models
 

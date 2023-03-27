@@ -35,6 +35,7 @@ class BlockNeRFViewerConfigWithoutNumRays(ViewerConfig):
 
     num_rays_per_chunk: tyro.conf.Suppress[int] = -1
     start_train: tyro.conf.Suppress[bool] = False
+    image_format = "png"
 
     def as_viewer_config(self):
         """Converts the instance to ViewerConfig"""
@@ -48,8 +49,8 @@ class RunBlockNeRFViewer:
     block_npy: Path
     """Path to block npy file."""
 
-    block_configs: Path
-    """Path to config JSON file."""
+    checkpoint: Path
+    """Path to merged model checkpoint."""
 
     config: TrainerConfig = TrainerConfig(
         method_name="blocknerf",
@@ -61,11 +62,11 @@ class RunBlockNeRFViewer:
             datamanager=BlockNeRFDatamanagerConfig(
                 camera_optimizer=None,
             ),
-            model=BlocknerfModelConfig(eval_num_rays_per_chunk=1 << 15),
+            model=BlocknerfModelConfig(eval_num_rays_per_chunk=1 << 16),
         ),
         optimizers={
         },
-        viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+        viewer=ViewerConfig(),
         vis="viewer",
     )
 
@@ -76,12 +77,16 @@ class RunBlockNeRFViewer:
         device_str = "cuda" if torch.cuda.is_available() else "cpu"
 
         """Main function."""
-        pipeline = self.config.pipeline.setup(device=device_str, block_npy=self.block_npy, block_configs=self.block_configs)
+        pipeline = self.config.pipeline.setup(
+            device=device_str,
+            block_npy=self.block_npy,
+            merged_model_checkpoint=self.checkpoint,
+        )
 
         config = self.config
         config.timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
 
-        num_rays_per_chunk = 20480
+        num_rays_per_chunk = self.config.pipeline.model.eval_num_rays_per_chunk
         assert self.viewer.num_rays_per_chunk == -1
         config.vis = "viewer"
         config.viewer = self.viewer.as_viewer_config()

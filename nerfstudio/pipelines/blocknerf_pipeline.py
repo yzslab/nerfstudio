@@ -31,8 +31,8 @@ class BlockNeRFPipeline(Pipeline):
             self,
             config: BlockNeRFPipelineConfig,
             device: str,
-            block_npy,
-            block_configs,
+            block_npy: str,
+            merged_model_checkpoint: str
     ) -> None:
         super().__init__()
         self.config = config
@@ -44,7 +44,7 @@ class BlockNeRFPipeline(Pipeline):
             num_train_data=len(self.datamanager.train_dataset),
             metadata=self.datamanager.train_dataset.metadata,
             block_npy=block_npy,
-            block_configs=block_configs,
+            merged_model_checkpoint=merged_model_checkpoint
         )
         self.model.to(device)
 
