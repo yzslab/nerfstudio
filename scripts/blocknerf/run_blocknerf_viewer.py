@@ -25,53 +25,13 @@ from nerfstudio.pipelines.blocknerf_pipeline import BlockNeRFPipelineConfig, Blo
 from nerfstudio.data.dataparsers.blocknerf_dataparser import BlocknerfDataParserConfig
 from nerfstudio.data.datamanagers.blocknerf_datamanager import BlockNeRFDatamanagerConfig
 from nerfstudio.models.blocknerf import BlocknerfModelConfig
+from scripts.blocknerf.blocknerf_config import BlockNeRFConfig
 
 CONSOLE = Console(width=120)
 
 
 @dataclass
-class BlockNeRFViewerConfigWithoutNumRays(ViewerConfig):
-    """Configuration for viewer instantiation"""
-
-    num_rays_per_chunk: tyro.conf.Suppress[int] = -1
-    start_train: tyro.conf.Suppress[bool] = False
-    image_format = "png"
-
-    def as_viewer_config(self):
-        """Converts the instance to ViewerConfig"""
-        return ViewerConfig(**{x.name: getattr(self, x.name) for x in fields(self)})
-
-
-@dataclass
-class RunBlockNeRFViewer:
-    """Load a checkpoint and start the viewer."""
-
-    block_npy: Path
-    """Path to block npy file."""
-
-    checkpoint: Path
-    """Path to merged model checkpoint."""
-
-    config: TrainerConfig = TrainerConfig(
-        method_name="blocknerf",
-        steps_per_eval_batch=99999999,
-        steps_per_save=99999999,
-        max_num_iterations=0,
-        mixed_precision=True,
-        pipeline=BlockNeRFPipelineConfig(
-            datamanager=BlockNeRFDatamanagerConfig(
-                camera_optimizer=None,
-            ),
-            model=BlocknerfModelConfig(eval_num_rays_per_chunk=1 << 16),
-        ),
-        optimizers={
-        },
-        viewer=ViewerConfig(),
-        vis="viewer",
-    )
-
-    viewer: BlockNeRFViewerConfigWithoutNumRays = field(default_factory=BlockNeRFViewerConfigWithoutNumRays)
-    """Viewer configuration"""
+class RunBlockNeRFViewer(BlockNeRFConfig):
 
     def main(self) -> None:
         device_str = "cuda" if torch.cuda.is_available() else "cpu"
@@ -87,9 +47,6 @@ class RunBlockNeRFViewer:
         config.timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
 
         num_rays_per_chunk = self.config.pipeline.model.eval_num_rays_per_chunk
-        assert self.viewer.num_rays_per_chunk == -1
-        config.vis = "viewer"
-        config.viewer = self.viewer.as_viewer_config()
         config.viewer.num_rays_per_chunk = num_rays_per_chunk
 
         self._start_viewer(config, pipeline)
