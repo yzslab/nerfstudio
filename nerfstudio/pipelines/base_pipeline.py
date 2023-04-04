@@ -181,7 +181,7 @@ class Pipeline(nn.Module):
 
     @abstractmethod
     @profiler.time_function
-    def get_average_eval_image_metrics(self, step: Optional[int] = None):
+    def get_average_eval_image_metrics(self, step: Optional[int] = None, output_dir: Optional[str] = None):
         """Iterate over all the images in the eval dataset and get the average."""
 
     def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
@@ -341,12 +341,18 @@ class VanillaPipeline(Pipeline):
         return metrics_dict, images_dict
 
     @profiler.time_function
-    def get_average_eval_image_metrics(self, step: Optional[int] = None):
+    def get_average_eval_image_metrics(self, step: Optional[int] = None, output_dir: Optional[str] = None):
         """Iterate over all the images in the eval dataset and get the average.
 
         Returns:
             metrics_dict: dictionary of metrics
         """
+
+        if output_dir is None:
+            output_dir = os.path.join("evals", str(self.config.datamanager.data).replace("/", "_"))
+            if step is not None:
+                output_dir = f"{output_dir}-step_{step}"
+        os.makedirs(output_dir, exist_ok=True)
 
         def visualize_depth(depth, cmap=cv2.COLORMAP_JET):
             """
@@ -380,11 +386,24 @@ class VanillaPipeline(Pipeline):
                 height, width = camera_ray_bundle.shape
                 num_rays = height * width
                 outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                output_image = outputs["rgb"].cpu().numpy()
-                media.write_image(os.path.join("renders", f"{count:05d}_rgb.png"), output_image)
-                depth_map = visualize_depth(outputs["depth"])
-                depth_map.save(os.path.join("renders", f"{count:05d}_depth.png"))
+
+                # set output key
+                output_image_key = "rgb"
+                if "rgb" not in outputs:
+                    output_image_key = "rgb_fine"
+                depth_map_key = "depth"
+                if "depth" not in outputs:
+                    depth_map_key = "depth_fine"
+
+                # save output
+                output_image = outputs[output_image_key].cpu().numpy()
+                media.write_image(os.path.join(output_dir, f"{count:05d}_rgb.png"), output_image)
+                gt_image = batch["image"].cpu().numpy()
+                media.write_image(os.path.join(output_dir, f"{count:05d}_rgb_gt.png"), gt_image)
+                depth_map = visualize_depth(outputs[depth_map_key])
+                depth_map.save(os.path.join(output_dir, f"{count:05d}_depth.png"))
                 count += 1
+
                 metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)

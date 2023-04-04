@@ -5,6 +5,7 @@ eval.py
 from __future__ import annotations
 
 import json
+import os.path
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,14 +24,23 @@ class ComputePSNR:
     # Path to config YAML file.
     load_config: Path
     # Name of the output file.
-    output_path: Path = Path("output.json")
+    output_path: Path = None
 
     def main(self) -> None:
         """Main function."""
         config, pipeline, checkpoint_path = eval_setup(self.load_config)
-        assert self.output_path.suffix == ".json"
-        metrics_dict = pipeline.get_average_eval_image_metrics()
-        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if self.output_path is None:
+            self.output_path = Path(os.path.join("evals", "{}-{}-{}-{}".format(
+                config.experiment_name,
+                config.method_name,
+                config.timestamp,
+                os.path.basename(checkpoint_path),
+            )))
+
+        self.output_path.mkdir(parents=True, exist_ok=True)
+        metrics_dict = pipeline.get_average_eval_image_metrics(output_dir=str(self.output_path))
+        # self.output_path.parent.mkdir(parents=True, exist_ok=True)
         # Get the output and define the names to save to
         benchmark_info = {
             "experiment_name": config.experiment_name,
@@ -39,7 +49,7 @@ class ComputePSNR:
             "results": metrics_dict,
         }
         # Save output to output file
-        self.output_path.write_text(json.dumps(benchmark_info, indent=2), "utf8")
+        (self.output_path / "metrics.json").write_text(json.dumps(benchmark_info, indent=2), "utf8")
         CONSOLE.print(f"Saved results to: {self.output_path}")
 
 

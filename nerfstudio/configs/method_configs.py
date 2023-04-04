@@ -341,8 +341,13 @@ method_configs["semantic-nerfw"] = TrainerConfig(
 
 method_configs["vanilla-nerf"] = TrainerConfig(
     method_name="vanilla-nerf",
+    max_num_iterations=250000,
+    steps_per_eval_image=5000,
+    steps_per_eval_all_images=250000,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
             dataparser=BlenderDataParserConfig(),
         ),
         model=VanillaModelConfig(_target=NeRFModel),
@@ -350,11 +355,11 @@ method_configs["vanilla-nerf"] = TrainerConfig(
     optimizers={
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-7, max_steps=1000000),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-7, max_steps=250000),
         },
         "temporal_distortion": {
             "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
-            "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-7, max_steps=1000000),
+            "scheduler": ExponentialDecaySchedulerConfig(lr_final=5e-7, max_steps=250000),
         },
     },
 )

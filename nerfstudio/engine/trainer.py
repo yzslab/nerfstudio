@@ -448,5 +448,13 @@ class Trainer:
 
         # all eval images
         if step_check(step, self.config.steps_per_eval_all_images):
-            metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
+            metrics_dict = self.pipeline.get_average_eval_image_metrics(
+                step=step,
+                output_dir=os.path.join("evals", "{}-{}-{}-step_{}".format(
+                    self.config.experiment_name,
+                    self.config.method_name,
+                    self.config.timestamp,
+                    step,
+                ))
+            )
             writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
