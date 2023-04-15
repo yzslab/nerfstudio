@@ -28,7 +28,7 @@ class ComputePSNR:
 
     def main(self) -> None:
         """Main function."""
-        config, pipeline, checkpoint_path = eval_setup(self.load_config)
+        config, pipeline, checkpoint_path, _ = eval_setup(self.load_config)
 
         if self.output_path is None:
             self.output_path = Path(os.path.join("evals", "{}-{}-{}-{}".format(

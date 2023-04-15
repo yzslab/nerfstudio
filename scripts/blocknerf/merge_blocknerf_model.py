@@ -46,7 +46,7 @@ class MergeBlockNeRFModel(PrintableConfig):
             for block_id in t:
                 t.set_description(f"Processing block {block_id}")
                 # load model from checkpoint
-                config, pipeline, _ = eval_setup(
+                config, pipeline, _, _ = eval_setup(
                     Path(block_configs[block_id]),
                     eval_num_rays_per_chunk=1 << 15,
                     test_mode="inference",

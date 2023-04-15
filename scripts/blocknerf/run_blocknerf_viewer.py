@@ -26,6 +26,7 @@ from nerfstudio.data.dataparsers.blocknerf_dataparser import BlocknerfDataParser
 from nerfstudio.data.datamanagers.blocknerf_datamanager import BlockNeRFDatamanagerConfig
 from nerfstudio.models.blocknerf import BlocknerfModelConfig
 from scripts.blocknerf.blocknerf_config import BlockNeRFConfig
+from nerfstudio.viewer.server.viewer_state import ViewerState
 
 CONSOLE = Console(width=120)
 
@@ -54,9 +55,13 @@ class RunBlockNeRFViewer(BlockNeRFConfig):
     def _start_viewer(self, config: TrainerConfig, pipeline: Pipeline):
         base_dir = config.get_base_dir()
         viewer_log_path = base_dir / config.viewer.relative_log_filename
-        viewer_state, banner_messages = viewer_utils.setup_viewer(
-            config.viewer, log_filename=viewer_log_path, datapath=pipeline.datamanager.get_datapath()
+        viewer_state = ViewerState(
+            config.viewer,
+            log_filename=viewer_log_path,
+            datapath=pipeline.datamanager.get_datapath(),
+            pipeline=pipeline,
         )
+        banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
 
         # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
         config.logging.local_writer.enable = False
@@ -67,32 +72,11 @@ class RunBlockNeRFViewer(BlockNeRFConfig):
             dataset=pipeline.datamanager.train_dataset,
             start_train=False,
         )
+
+        viewer_state.viser_server.set_is_training(False)
+        viewer_state.update_scene(step=1)
         while True:
-            viewer_state.vis["renderingState/isTraining"].write(False)
-            self._update_viewer_state(viewer_state, pipeline)
-
-    def _update_viewer_state(self, viewer_state: viewer_utils.ViewerState, pipeline: Pipeline):
-        """Updates the viewer state by rendering out scene with current pipeline
-        Returns the time taken to render scene.
-
-        """
-        # NOTE: step must be > 0 otherwise the rendering would not happen
-        step = 1
-        num_rays_per_batch = pipeline.datamanager.get_train_rays_per_batch()
-        with TimeWriter(writer, EventName.ITER_VIS_TIME) as _:
-            try:
-                viewer_state.update_scene(self, step, pipeline.model, num_rays_per_batch)
-            except RuntimeError:
-                time.sleep(0.03)  # sleep to allow buffer to reset
-                assert viewer_state.vis is not None
-                viewer_state.vis["renderingState/log_errors"].write(
-                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
-                )
-
-    def save_checkpoint(self, *args, **kwargs):
-        """
-        Mock method because we pass this instance to viewer_state.update_scene
-        """
+            time.sleep(0.01)
 
 
 def entrypoint():

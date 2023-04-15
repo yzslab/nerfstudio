@@ -51,7 +51,6 @@ class BlockNeRFConfig:
         optimizers={
         },
         viewer=ViewerConfig(
-            start_train=False,
             # image_format="png",
         ),
         vis="viewer",
