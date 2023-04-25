@@ -159,8 +159,9 @@ class Nerflab(DataParser):
                 )
 
             image_filenames.append(fname)
-            image_ids.append(frame["image_id"])
-            if split_list is not None and fname in split_list:
+            if "image_id" in frame:
+                image_ids.append(frame["image_id"])
+            if split_list is not None and frame["file_path"] in split_list:
                 eval_id_list.append(num_accepted_images)
             num_accepted_images += 1
             poses.append(np.array(frame["transform_matrix"]))
@@ -203,10 +204,14 @@ class Nerflab(DataParser):
         num_images = len(image_filenames)
         i_all = np.arange(num_images)
         if len(eval_id_list) > 0:
+            # use split.json
+            CONSOLE.log(f"Using split.json to split train and eval set")
             num_eval_images = len(eval_id_list)
             i_eval = np.asarray(eval_id_list)
             i_train = np.setdiff1d(i_all, eval_id_list)
         else:
+            if split_list is not None:
+               CONSOLE.log("WARNING: split.json provided but does not take any effect")
             num_train_images = math.ceil(num_images * self.config.train_split_percentage)
             num_eval_images = num_images - num_train_images
             i_train = np.linspace(
@@ -253,7 +258,8 @@ class Nerflab(DataParser):
 
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
         image_filenames = [image_filenames[i] for i in indices]
-        image_ids = [image_ids[i] for i in indices]
+        if len(image_ids) > 0:
+            image_ids = [image_ids[i] for i in indices]
         mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
         depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
         poses = poses[indices]
@@ -314,7 +320,7 @@ class Nerflab(DataParser):
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
             metadata={
-                "global_max_image_id": meta["global_max_image_id"],
+                "global_max_image_id": meta["global_max_image_id"] if "global_max_image_id" in meta else None,
                 "image_ids": image_ids,
                 "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,

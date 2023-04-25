@@ -415,7 +415,8 @@ class VanillaPipeline(Pipeline):
         # average the metrics list
         metrics_dict = {}
         for key in metrics_dict_list[0].keys():
-            metrics_dict[key] = float(
+            metrics_dict[key] = [float(metrics_dict[key]) for metrics_dict in metrics_dict_list]
+            metrics_dict["average_" + key] = float(
                 torch.mean(torch.tensor([metrics_dict[key] for metrics_dict in metrics_dict_list]))
             )
         self.train()

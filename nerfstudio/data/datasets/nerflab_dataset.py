@@ -52,4 +52,6 @@ class NeRFLabDataset(InputDataset):
         #     filepath=filepath, height=height, width=width, scale_factor=scale_factor
         # )
 
-        return {"appearance_embedding": self.image_ids[data["image_idx"]]}
+        if "image_ids" in self.metadata and len(self.metadata["image_ids"]) > 0:
+            return {"appearance_embedding": self.image_ids[data["image_idx"]]}
+        return {}

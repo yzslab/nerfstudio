@@ -152,7 +152,7 @@ class NerfactoModel(Model):
 
         # Fields
         num_appearance_embedding = self.num_train_data
-        if "metadata" in self.kwargs and "global_max_image_id" in self.kwargs["metadata"]:
+        if "metadata" in self.kwargs and "global_max_image_id" in self.kwargs["metadata"] and self.kwargs["metadata"]["global_max_image_id"] is not None:
             # must plus one to prevent embedding out of index
             num_appearance_embedding = self.kwargs["metadata"]["global_max_image_id"] + 1
         self.field = TCNNNerfactoField(
