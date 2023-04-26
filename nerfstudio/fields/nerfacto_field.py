@@ -264,7 +264,10 @@ class TCNNNerfactoField(Field):
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
         camera_indices = ray_samples.camera_indices.squeeze()
-        appearance_embeddings = ray_samples.appearance_embeddings.squeeze()
+        # use camera indices as appearance embeddings by default
+        appearance_embeddings = camera_indices
+        if ray_samples.appearance_embeddings is not None:
+            appearance_embeddings = ray_samples.appearance_embeddings.squeeze()
         directions = shift_directions_for_tcnn(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)

@@ -26,7 +26,11 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from rich.console import Console
-from torch.autograd.profiler import ContextDecorator
+try:
+    from torch.autograd.profiler import ContextDecorator
+except ImportError:
+    from torch.autograd.profiler import _ContextDecorator as ContextDecorator
+
 from torch.profiler import ProfilerActivity, profile, record_function
 
 from nerfstudio.configs import base_config as cfg

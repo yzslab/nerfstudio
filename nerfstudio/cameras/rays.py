@@ -260,7 +260,7 @@ class RayBundle(TensorDataclass):
         else:
             camera_indices = None
 
-        appearance_embeddings = camera_indices[...]
+        appearance_embeddings = None
         if self.appearance_embeddings is not None:
             appearance_embeddings = self.appearance_embeddings[..., None]
 
@@ -277,7 +277,7 @@ class RayBundle(TensorDataclass):
         ray_samples = RaySamples(
             frustums=frustums,
             camera_indices=camera_indices,  # [..., 1, 1]
-            appearance_embeddings=appearance_embeddings,
+            appearance_embeddings=appearance_embeddings,  # TODO: implement custom appearance embeddings value for other samplers
             deltas=deltas,  # [..., num_samples, 1]
             spacing_starts=spacing_starts,  # [..., num_samples, 1]
             spacing_ends=spacing_ends,  # [..., num_samples, 1]
