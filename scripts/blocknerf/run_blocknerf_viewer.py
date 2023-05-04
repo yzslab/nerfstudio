@@ -70,10 +70,10 @@ class RunBlockNeRFViewer(BlockNeRFConfig):
         assert viewer_state and pipeline.datamanager.train_dataset
         viewer_state.init_scene(
             dataset=pipeline.datamanager.train_dataset,
-            start_train=False,
+            train_state="completed",
         )
 
-        viewer_state.viser_server.set_is_training(False)
+        viewer_state.viser_server.set_training_state("completed")
         viewer_state.update_scene(step=1)
         while True:
             time.sleep(0.01)
