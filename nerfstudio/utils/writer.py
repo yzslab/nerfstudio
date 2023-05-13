@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,15 +26,14 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 import wandb
-from rich.console import Console
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.printing import human_format
+from nerfstudio.utils.rich_utils import CONSOLE
 
-CONSOLE = Console(width=120)
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
 EVENT_WRITERS = []
 EVENT_STORAGE = []
@@ -187,6 +186,13 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
     GLOBAL_BUFFER["events"] = {}
 
 
+def is_initialized():
+    """
+    Returns True after setup_local_writer was called
+    """
+    return "events" in GLOBAL_BUFFER
+
+
 @check_main_thread
 def setup_event_writer(
     is_wandb_enabled: bool,
@@ -273,7 +279,7 @@ class TimeWriter:
     def __exit__(self, *args):
         self.duration = time() - self.start
         update_step = self.step is not None
-        if self.write:
+        if self.write and is_initialized():
             self.writer.put_time(
                 name=self.name,
                 duration=self.duration,

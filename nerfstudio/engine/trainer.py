@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 the Regents of the University of California, Nerfstudio Team and contributors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ from typing import Dict, List, Literal, Optional, Tuple, Type, Union
 
 import torch
 from rich import box, style
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from torch.cuda.amp.grad_scaler import GradScaler
@@ -48,10 +47,9 @@ from nerfstudio.utils.decorators import (
     check_viewer_enabled,
 )
 from nerfstudio.utils.misc import step_check
+from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server.viewer_state import ViewerState
-
-CONSOLE = Console(width=120)
 
 TRAIN_INTERATION_OUTPUT = Tuple[  # pylint: disable=invalid-name
     torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]
@@ -299,7 +297,8 @@ class Trainer:
         table.add_row("Checkpoint Directory", str(self.checkpoint_dir))
         CONSOLE.print(Panel(table, title="[bold][green]:tada: Training Finished :tada:[/bold]", expand=False))
 
-        self._train_complete_viewer()
+        if not self.config.viewer.quit_on_train_completion:
+            self._train_complete_viewer()
 
     @check_main_thread
     def _check_viewer_warnings(self) -> None:
@@ -344,8 +343,7 @@ class Trainer:
     def _train_complete_viewer(self) -> None:
         """Let the viewer know that the training is complete"""
         assert self.viewer_state is not None
-        if not self.config.viewer.quit_on_train_completion:
-            self.training_state = "completed"
+        self.training_state = "completed"
         try:
             self.viewer_state.training_complete()
         except RuntimeError:
@@ -461,8 +459,11 @@ class Trainer:
 
             metrics_dict["Gradients/Total"] = total_grad
 
+        scale = self.grad_scaler.get_scale()
         self.grad_scaler.update()
-        self.optimizers.scheduler_step_all(step)
+        # If the gradient scaler is decreased, no optimization step is performed so we should not step the scheduler.
+        if scale <= self.grad_scaler.get_scale():
+            self.optimizers.scheduler_step_all(step)
 
         # Merging loss and metrics dict into a single output.
         return loss, loss_dict, metrics_dict
