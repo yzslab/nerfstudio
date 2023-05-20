@@ -27,7 +27,6 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from .base_dataset import InputDataset
-from torchtyping import TensorType
 
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -83,7 +82,7 @@ class BlockNeRFDataset(InputDataset):
     def get_numpy_image(self, image_idx: int) -> npt.NDArray[np.uint8]:
         return 1
 
-    def get_image(self, image_idx: int) -> TensorType["image_height", "image_width", "num_channels"]:
+    def get_image(self, image_idx: int):
         return self.image
 
     def get_data(self, image_idx: int) -> Dict:

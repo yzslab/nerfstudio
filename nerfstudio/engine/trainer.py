@@ -24,7 +24,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
-from typing import Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Dict, List, Literal, Optional, Tuple, Type, cast
 
 import torch
 from rich import box, style
@@ -51,10 +51,8 @@ from nerfstudio.utils.rich_utils import CONSOLE
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server.viewer_state import ViewerState
 
-TRAIN_INTERATION_OUTPUT = Tuple[  # pylint: disable=invalid-name
-    torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]
-]
-TORCH_DEVICE = Union[torch.device, str]  # pylint: disable=invalid-name
+TRAIN_INTERATION_OUTPUT = Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
+TORCH_DEVICE = str
 
 
 @dataclass
@@ -175,9 +173,9 @@ class Trainer:
 
         self.callbacks = self.pipeline.get_training_callbacks(
             TrainingCallbackAttributes(
-                optimizers=self.optimizers,  # type: ignore
-                grad_scaler=self.grad_scaler,  # type: ignore
-                pipeline=self.pipeline,  # type: ignore
+                optimizers=self.optimizers,
+                grad_scaler=self.grad_scaler,
+                pipeline=self.pipeline,
             )
         )
 
@@ -251,7 +249,9 @@ class Trainer:
                 if step > 1:
                     writer.put_time(
                         name=EventName.TRAIN_RAYS_PER_SEC,
-                        duration=self.pipeline.datamanager.get_train_rays_per_batch() / train_t.duration,
+                        duration=self.world_size
+                        * self.pipeline.datamanager.get_train_rays_per_batch()
+                        / train_t.duration,
                         step=step,
                         avg_over_steps=True,
                     )
@@ -365,15 +365,15 @@ class Trainer:
         train_num_rays_per_batch: int = self.pipeline.datamanager.get_train_rays_per_batch()
         writer.put_time(
             name=EventName.TRAIN_RAYS_PER_SEC,
-            duration=train_num_rays_per_batch / (train_t.duration - vis_t.duration),
+            duration=self.world_size * train_num_rays_per_batch / (train_t.duration - vis_t.duration),
             step=step,
             avg_over_steps=True,
         )
 
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
-        load_dir: Path = self.config.load_dir
-        load_checkpoint: Path = self.config.load_checkpoint
+        load_dir = self.config.load_dir
+        load_checkpoint = self.config.load_checkpoint
         if load_dir is not None:
             load_step = self.config.load_step
             if load_step is None:
@@ -457,7 +457,7 @@ class Trainer:
                     metrics_dict[f"Gradients/{tag}"] = grad
                     total_grad += grad
 
-            metrics_dict["Gradients/Total"] = total_grad
+            metrics_dict["Gradients/Total"] = cast(torch.Tensor, total_grad)
 
         scale = self.grad_scaler.get_scale()
         self.grad_scaler.update()
