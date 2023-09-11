@@ -96,7 +96,7 @@ class GaussianSplattingDataset(InputDataset):
             distortion_params=None,
             height=torch.tensor(height_list, dtype=torch.int),
             width=torch.tensor(width_list, dtype=torch.int),
-            camera_to_worlds=torch.tensor(c2w_list, dtype=torch.float),
+            camera_to_worlds=torch.from_numpy(np.stack(c2w_list, axis=0)),
             camera_type=CameraType.PERSPECTIVE,
         )
 
