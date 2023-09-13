@@ -269,11 +269,12 @@ class Writer:
 class TimeWriter:
     """Timer context manager that calculates duration around wrapped functions"""
 
-    def __init__(self, writer, name, step=None, write=True):
+    def __init__(self, writer, name, step=None, write=True, eps=1e-4):
         self.writer = writer
         self.name = name
         self.step = step
         self.write = write
+        self.eps = eps
 
         self.start: float = 0.0
         self.duration: float = 0.0
@@ -283,7 +284,7 @@ class TimeWriter:
         return self
 
     def __exit__(self, *args):
-        self.duration = time() - self.start
+        self.duration = time() - self.start + self.eps
         update_step = self.step is not None
         if self.write and is_initialized():
             self.writer.put_time(
