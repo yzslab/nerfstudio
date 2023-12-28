@@ -124,7 +124,8 @@ RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise pybind1
 RUN CUDA_VER=${CUDA_VERSION%.*} && CUDA_VER=${CUDA_VER//./} && python3.10 -m pip install \
     torch==2.0.1+cu${CUDA_VER} \
     torchvision==0.15.2+cu${CUDA_VER} \
-        --extra-index-url https://download.pytorch.org/whl/cu${CUDA_VER}
+    torchaudio \
+        --index-url https://download.pytorch.org/whl/cu${CUDA_VER}
 # Install tynyCUDNN (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
@@ -164,6 +165,10 @@ USER ${USER_ID}
 RUN cd nerfstudio && \
     python3.10 -m pip install -e . && \
     cd ..
+
+RUN python3.10 -m pip install plyfile==0.8.1
+RUN pip install ./submodules/diff-gaussian-rasterization
+RUN pip install ./submodules/simple-knn
 
 # Change working directory
 WORKDIR /workspace
