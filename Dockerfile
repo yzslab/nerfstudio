@@ -121,11 +121,11 @@ SHELL ["/bin/bash", "-c"]
 # Upgrade pip and install packages.
 RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise pybind11
 # Install pytorch and submodules
-RUN CUDA_VER=${CUDA_VERSION%.*} && CUDA_VER=${CUDA_VER//./} && python3.10 -m pip install \
-    torch==2.0.1+cu${CUDA_VER} \
-    torchvision==0.15.2+cu${CUDA_VER} \
+RUN python3.10 -m pip install \
+    torch \
+    torchvision \
     torchaudio \
-        --index-url https://download.pytorch.org/whl/cu${CUDA_VER}
+        --index-url https://download.pytorch.org/whl/cu118
 # Install tynyCUDNN (we need to set the target architectures as environment variable first).
 ENV TCNN_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}
 RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git@v1.6#subdirectory=bindings/torch
