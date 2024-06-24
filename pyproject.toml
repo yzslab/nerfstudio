@@ -48,6 +48,7 @@ dependencies = [
     # wheels. https://github.com/letmaik/rawpy/issues/171#issuecomment-1572627747
     "rawpy>=0.18.1,<0.22.0; platform_machine != 'arm64'",
     "newrawpy>=1.0.0b0; platform_machine == 'arm64'",
+    "numpy<2.0",
     "requests",
     "rich>=12.5.1",
     "scikit-image>=0.19.3",
